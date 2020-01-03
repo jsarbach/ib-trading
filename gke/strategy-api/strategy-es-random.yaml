@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: ib-trading
+    purpose: strategy
+  name: es-random
+  namespace: ib-trading
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ib-trading
+      purpose: strategy
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: ib-trading
+        purpose: strategy
+    spec:
+      containers:
+      - env:
+        - name: GATEWAY
+          value: ib-gw-paper
+        - name: STRATEGY
+          value: es-random
+        image: eu.gcr.io/PROJECT_ID/gke/strategy-api:latest
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 60
+          periodSeconds: 60
+          timeoutSeconds: 5
+        name: es-random
+        ports:
+        - containerPort: 8000
+          name: http
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: ib-trading
+    purpose: strategy
+  name: es-random
+  namespace: ib-trading
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8000
+  selector:
+    app: ib-trading
+    purpose: strategy
+  sessionAffinity: None
+  type: ClusterIP

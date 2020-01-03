@@ -1,0 +1,7 @@
+.idea/
+**/secrets/*.json
+**/ibapi/
+**/__pycache__/
+.directory
+docker-compose.yml
+*.pyc

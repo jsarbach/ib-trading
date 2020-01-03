@@ -1,0 +1,35 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  labels:
+    app: ib-trading
+    purpose: allocator
+  name: allocator-es-random-paper
+  namespace: ib-trading
+spec:
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/secrets/google/key.json
+            - name: ORDER_PROPERTIES
+              value: '{"tif":"DAY"}'
+            - name: STRATEGIES
+              value: es-random
+            - name: TRADING_MODE
+              value: paper
+            image: eu.gcr.io/PROJECT_ID/gke/allocator:latest
+            name: allocator-es-random-paper
+            volumeMounts:
+            - name: key-store
+              mountPath: /var/secrets/google
+          restartPolicy: OnFailure
+          volumes:
+          - name: key-store
+            secret:
+              secretName: firestore-key
+  schedule: "30 23 * * 0-4"
