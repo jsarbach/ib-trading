@@ -86,7 +86,7 @@ def main():
     signal = randint(-1, 1)
 
     allocation = {
-        str(es[0].conId): signal
+        es[0].conId: signal
     }
     module_logger.debug('Allocation: {}'.format(allocation))
     return allocation
