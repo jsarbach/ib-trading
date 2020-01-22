@@ -21,9 +21,8 @@ ORDER_PROPERTIES = environ.get('ORDER_PROPERTIES', default='{}')
 STRATEGIES = environ.get('STRATEGIES')
 TRADING_MODE = environ.get('TRADING_MODE', default='paper')
 
-# instantiate Firestore Client and query config
+# instantiate Firestore Client
 db = firestore.Client()
-config = db.collection('config').document('paper' if TRADING_MODE == 'local' else TRADING_MODE).get().to_dict()
 
 # instantiate ib-insync IB gateway
 ib_gw = IB()
@@ -54,36 +53,24 @@ def get_account_values(account):
     return account_values
 
 
-def get_contract_details(contract_ids=()):
+def get_contract_data(contract_ids=()):
     """
     Requests contract details and price (tick) data
 
     :param contract_ids: iterable of IB contract IDs
-    :return: contract details (dict)
+    :return: contract data (dict)
     """
     contract_data = {}
     for con_id in contract_ids:
-        contract_data[con_id] = {}
-        contract = ib_gw.reqContractDetails(Contract(conId=con_id))[0].contract
-        contract_data[con_id]['contract'] = contract
-        logger.info('Requesting tick data for {}...'.format(contract.localSymbol))
-        contract_data[con_id]['tickData'] = ib_gw.reqTickers(contract)[0]
+        contract_details = ib_gw.reqContractDetails(Contract(conId=con_id))[0].nonDefaults()
+        contract = contract_details.pop('contract')
+        contract_data[con_id] = {
+            'contract': contract,
+            'contract_details': contract_details,
+            'ticker': get_tickers(contract)
+        }
 
     return contract_data
-
-
-def get_positions(account):
-    """
-    Requests current portfolio positions
-
-    :param account: IB account number
-    :return: positions per contract ID (dict)
-    """
-    positions = {}
-    for item in ib_gw.positions(account):
-        positions[str(item.contract.conId)] = item.position
-
-    return positions
 
 
 def get_signal(identifier):
@@ -109,6 +96,17 @@ def get_signal(identifier):
         # return {}
 
 
+def get_tickers(contract):
+    """
+    Requests price (tick) data
+
+    :param contract: ib_insync.Contract
+    :return: ib_insync.Ticker
+    """
+    logging.info('Requesting tick data for {}...'.format(contract.localSymbol))
+    return ib_gw.reqTickers(contract)[0]
+
+
 def make_allocation(signals=()):
     """
     Consolidates all strategy signals into one allocation
@@ -128,6 +126,9 @@ def make_allocation(signals=()):
 
 
 def main():
+    # query config
+    config = db.collection('config').document('paper' if TRADING_MODE == 'local' else TRADING_MODE).get().to_dict()
+
     # activity log for Firestore
     activity_log = {
         'agent': (re.match('([\\w-]+)-([0-9]+|manual-[0-9a-z]+)-[0-9a-z]+$', HOSTNAME)).group(1) if HOSTNAME is not None else 'localhost',
@@ -171,28 +172,26 @@ def main():
         activity_log['netLiquidation'] = net_liquidation
 
         # get positions
-        positions = get_positions(config['account'])
+        positions = {item.contract.conId: item.position for item in ib_gw.positions(config['account'])}
         activity_log['positions'] = positions
 
         # get contract details
-        contract_details = get_contract_details(set(list(allocation.keys()) + list(positions.keys())))
-        # build contractId<->symbol lookup dict
-        symbol_map = {
-            'conid_symbol': {k: v['contract'].localSymbol for k, v in contract_details.items()},
-            'symbol_conid': {v['contract'].localSymbol: k for k, v in contract_details.items()}
-        }
-        activity_log['contractIds'] = symbol_map['symbol_conid']
-        # replace dict items
-        activity_log['signals'] = {k: {symbol_map['conid_symbol'][k]: v for k, v in v.items()} for k, v in signals.items()}
-        activity_log['scaledSignals'] = [{symbol_map['conid_symbol'][k]: v for k, v in s.items()} for s in scaled_signals]
-        activity_log['allocation'] = {symbol_map['conid_symbol'][k]: v for k, v in allocation.items()}
-        activity_log['positions'] = {symbol_map['conid_symbol'][k]: v for k, v in positions.items()}
+        contract_data = get_contract_data(set(list(allocation.keys()) + list(positions.keys())))
+        # build contractId->symbol lookup dict
+        symbol_map = {k: v['contract'].localSymbol for k, v in contract_data.items()}
+        activity_log['contractIds'] = {v['contract'].localSymbol: k for k, v in contract_data.items()}
+        # replace dict keys
+        activity_log['signals'] = {k: {symbol_map[k]: v for k, v in v.items()} for k, v in signals.items()}
+        activity_log['scaledSignals'] = [{symbol_map[k]: v for k, v in s.items()} for s in scaled_signals]
+        activity_log['allocation'] = {symbol_map[k]: v for k, v in allocation.items()}
+        activity_log['positions'] = {symbol_map[k]: v for k, v in positions.items()}
 
         # get relevant currencies and corresponding FX ratese
-        currencies = {v['contract'].currency for v in contract_details.values()}
-        fx = {}
-        for c in currencies:
-            fx[c] = 1 if c == base_currency else ib_gw.reqTickers(Forex(c + base_currency))[0]
+        currencies = {v['contract'].currency for v in contract_data.values()}
+        fx = {
+            c: 1 if c == base_currency else get_tickers(Forex(c + base_currency))
+            for c in currencies
+        }
         activity_log['fx'] = {
             v.contract.symbol + v.contract.currency: v.midpoint()
             if v.midpoint() == v.midpoint() else v.close
@@ -202,11 +201,11 @@ def main():
         # calculate target positions
         target_positions = {
             k: round(config['exposure']['overall'] * v * net_liquidation
-                     / (contract_details[k]['tickData'].close
-                        * int(contract_details[k]['contract'].multiplier)
-                        * (fx[contract_details[k]['contract'].currency].midpoint()
-                           if fx[contract_details[k]['contract'].currency].midpoint() == fx[contract_details[k]['contract'].currency].midpoint()
-                           else fx[contract_details[k]['contract'].currency].close)))
+                     / (contract_data[k]['ticker'].close
+                        * int(contract_data[k]['contract'].multiplier)
+                        * (fx[contract_data[k]['contract'].currency].midpoint()
+                           if fx[contract_data[k]['contract'].currency].midpoint() == fx[contract_data[k]['contract'].currency].midpoint()
+                           else fx[contract_data[k]['contract'].currency].close)))
             for k, v in allocation.items()
         }
 
@@ -216,39 +215,38 @@ def main():
         for k in positions.keys():
             if k not in target_positions:
                 target_positions[k] = 0
-        activity_log['positions'] = {symbol_map['conid_symbol'][k]: v for k, v in positions.items()}
-        activity_log['targetPositions'] = {symbol_map['conid_symbol'][k]: v for k, v in target_positions.items()}
+        activity_log['positions'] = {symbol_map[k]: v for k, v in positions.items()}
+        activity_log['targetPositions'] = {symbol_map[k]: v for k, v in target_positions.items()}
 
         # calculate trade
-        trades = {}
-        for k in target_positions.keys():
-            trades[k] = target_positions[k] - positions[k]
+        trades = {k: target_positions[k] - positions[k] for k in target_positions.keys()}
         trades = {k: int(v) for k, v in trades.items() if v != 0}
-        activity_log['trades'] = {symbol_map['conid_symbol'][k]: v for k, v in trades.items()}
+        activity_log['trades'] = {symbol_map[k]: v for k, v in trades.items()}
         logger.info('Trades: {}'.format(activity_log['trades']))
 
+        perm_ids = []
         if not DRY_RUN:
-            # parse order properties
-            order_properties = {k: v for k, v in order_properties.items() if k in MarketOrder.defaults.keys()}
-
             # place orders
             for k, v in trades.items():
-                ib_gw.placeOrder(ib_gw.reqContractDetails(Contract(conId=k))[0].contract,
-                                 MarketOrder('BUY' if v > 0 else 'SELL', abs(v), **order_properties))
+                order = ib_gw.placeOrder(contract_data[k]['contract'],
+                                         MarketOrder(action='BUY' if v > 0 else 'SELL',
+                                                     totalQuantity=abs(v)).update(**order_properties))
+                perm_ids.append(order.order.permId)
+        ib_gw.sleep(5)  # give the IB Gateway a couple of seconds to digest orders and to raise possible errors
         activity_log['orders'] = {
             t.contract.localSymbol: {
                 'order': {
                     k: v
-                    for k, v in t.order.dict().items()
-                    if v is not '' and (isinstance(v, str) or isinstance(v, (int, float)) and v < 2147483647)
+                    for k, v in t.order.nonDefaults().items()
+                    if isinstance(v, (int, float, str))
                 },
                 'orderStatus': {
                     k: v
-                    for k, v in t.orderStatus.dict().items()
-                    if v is not '' and isinstance(v, (int, float, str))
+                    for k, v in t.orderStatus.nonDefaults().items()
+                    if isinstance(v, (int, float, str))
                 },
                 'isActive': t.isActive()
-            } for t in ib_gw.trades()
+            } for t in ib_gw.trades() if t.order.permId in perm_ids
         }
         logging.info('Orders placed: {}'.format(activity_log['orders']))
 
