@@ -1,18 +1,12 @@
 # ib-trading
-## Kubernetes-based algorithmic trading with Interactive Brokers (IB)
+## Algorithmic trading with Interactive Brokers (IB)
 
-These are the code samples behind my Medium article [Building my own Cloud-based Robo-advisor]. Main ingredients:
+These are the code samples behind my Medium articles about algorithmic trading with IB on the Google Cloud Platform. There are two different implementations:
 
-* [Kubernetes]/[GKE]
-* [IBC]
-* [IB's Python API]
-* [IB-insync]
+* Kubernetes, see [Building my own Cloud-based Robo-advisor]
+* Cloud Run, see [Run, Gateway, Run! &ndash; Algorithmic Trading the Serverless Way]
 
 Use at your own risk. ;-)
 
 [Building my own Cloud-based Robo-advisor]: https://medium.com/@juri.sarbach/building-my-own-cloud-based-robo-advisor-5588ec1b74d3
-[Kubernetes]: https://kubernetes.io/
-[GKE]: https://cloud.google.com/kubernetes-engine/
-[IBC]: https://github.com/IbcAlpha/IBC
-[IB's Python API]: https://interactivebrokers.github.io/
-[IB-insync]: https://github.com/erdewit/ib_insync
+[Run, Gateway, Run! &ndash; Algorithmic Trading the Serverless Way]: https://medium.com/@juri.sarbach/run-gateway-run-algorithmic-trading-the-serverless-way-71634dc1a37
