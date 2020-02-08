@@ -1,0 +1,17 @@
+images:
+- "eu.gcr.io/${PROJECT_ID}/cloud-run/application"
+steps:
+- name: "gcr.io/cloud-builders/docker"
+  args: ["build", "-t", "eu.gcr.io/${PROJECT_ID}/cloud-run/application:${SHORT_SHA}", "cloud-run/application/"]
+- name: "gcr.io/cloud-builders/docker"
+  args: ["push", "eu.gcr.io/${PROJECT_ID}/cloud-run/application:${SHORT_SHA}"]
+- name: 'gcr.io/cloud-builders/gcloud-slim'
+  entrypoint: "bash"
+  args:
+  - "-c"
+  - |
+    services=(${_SERVICES})
+    for service in "${services[@]}"
+    do
+      gcloud run deploy ${service}-dev --image eu.gcr.io/${PROJECT_ID}/cloud-run/application:${SHORT_SHA} --region ${_GCP_REGION} --platform managed
+    done
