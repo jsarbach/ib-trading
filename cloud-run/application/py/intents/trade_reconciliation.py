@@ -12,7 +12,7 @@ K_REVISION = environ.get('K_REVISION', default='localhost')
 db = firestore.Client()
 
 
-def main(ib_gw, trading_mode, _):
+def main(ib_gw, trading_mode):
     # query config
     config = db.collection('config').document(trading_mode).get().to_dict()
 
@@ -88,6 +88,6 @@ if __name__ == '__main__':
     ib = IB()
     ib.connect('localhost', 4001, 1)
     try:
-        print(main(ib, 'paper', None))
+        print(main(ib, 'paper'))
     finally:
         ib.disconnect()
