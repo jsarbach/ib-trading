@@ -48,14 +48,14 @@ def main(ib_gw, trading_mode):
                 })
 
                 holdings_doc = db.collection('positions').document(trading_mode).collection('holdings').document(order['strategy'])
-                holdings = holdings_doc.get().to_dict()
-                position = holdings.get(str(fill.contract.conId), 0) if holdings is not None else 0
+                holdings = holdings_doc.get().to_dict() or {}
+                position = holdings.get(str(fill.contract.conId), 0)
                 side = 1 if fill.execution.side == 'BOT' else -1
 
                 with db.transaction() as tx:
                     action = tx.update if holdings_doc.get().exists else tx.create
                     action(holdings_doc,
-                           {str(fill.contract.conId): position + side * fill.execution.cumQty or firestore.DELETE_FIELD})
+                           {str(fill.contract.conId): position + side * int(fill.execution.cumQty) or firestore.DELETE_FIELD})
                     tx.delete(order_doc)
         activity_log['fills'] = fills
 
