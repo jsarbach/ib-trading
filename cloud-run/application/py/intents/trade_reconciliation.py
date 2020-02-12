@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from google.cloud import firestore_v1 as firestore
-from ib_insync import Contract, OrderStatus
+from ib_insync import Contract
 import logging
 from os import environ
 
@@ -26,20 +26,38 @@ def main(ib_gw, trading_mode):
 
     main_e = None
     try:
+        # log open orders/trades
+        activity_log['openOrders'] = [
+            {
+                'contract': t.contract.nonDefaults(),
+                'orderStatus': t.orderStatus.nonDefaults()
+            } for t in ib_gw.trades()
+        ]
+
         # reconcile trades
-        open_orders = []
-        for t in ib_gw.trades():
-            open_orders.append(t.orderStatus.nonDefaults())
-            order_doc = db.collection('positions').document(trading_mode).collection('openOrders').document(str(t.order.permId))
-            strategy = order_doc.get().to_dict()['strategy']
-            holding_doc = db.collection('positions').document(trading_mode).collection('holdings').document(strategy).get().to_dict()
-            position = holding_doc.get(str(t.contract.conId), 0) if holding_doc is not None else 0
-            if t.orderStatus.status in OrderStatus.DoneStates:
+        fills = []
+        for fill in ib_gw.fills():
+            order_doc = db.collection('positions').document(trading_mode).collection('openOrders').document(str(fill.execution.permId))
+            order = order_doc.get().to_dict()
+
+            # update holdings if fully executed
+            if order is not None and fill.execution.cumQty == abs(order['quantity']):
+                fills.append({
+                    'contract': fill.contract.nonDefaults(),
+                    'execution': fill.execution.nonDefaults()
+                })
+
+                holdings_doc = db.collection('positions').document(trading_mode).collection('holdings').document(order['strategy'])
+                holdings = holdings_doc.get().to_dict()
+                position = holdings.get(str(fill.contract.conId), 0) if holdings is not None else 0
+                side = 1 if fill.execution.side == 'BOT' else -1
+
                 with db.transaction() as tx:
-                    tx.update(holding_doc,
-                              {str(t.contract.conId): position + t.orderStatus.filled or firestore.DELETE_FIELD})
+                    action = tx.update if holdings_doc.get().exists else tx.create
+                    action(holdings_doc,
+                           {str(fill.contract.conId): position + side * fill.execution.cumQty or firestore.DELETE_FIELD})
                     tx.delete(order_doc)
-        activity_log['openOrders'] = open_orders
+        activity_log['fills'] = fills
 
         # double-check with IB portfolio
         ib_portfolio = ib_gw.portfolio()
