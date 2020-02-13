@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from google.cloud import firestore_v1 as firestore
-from ib_insync import Contract
+from ib_insync import Contract, util
 import logging
 from os import environ
 
@@ -44,7 +44,7 @@ def main(ib_gw, trading_mode):
             if order is not None and fill.execution.cumQty == abs(order['quantity']):
                 fills.append({
                     'contract': fill.contract.nonDefaults(),
-                    'execution': fill.execution.nonDefaults()
+                    'execution': util.tree(fill.execution.nonDefaults())
                 })
 
                 holdings_doc = db.collection('positions').document(trading_mode).collection('holdings').document(order['strategy'])
