@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from google.cloud import firestore_v1 as firestore
-from ib_insync import Contract as IBContract, Forex, MarketOrder, OrderStatus
+from ib_insync import Contract as IBContract, Forex, MarketOrder, OrderStatus, util
 import logging
 
 
@@ -236,65 +236,70 @@ class Trade:
             for k, v in strategy.trades.items():
                 if k not in self._trades:
                     self._trades[k] = {}
-                self._trades[k]['source'] = {strategy.name: v}
                 self._trades[k]['contract'] = strategy.contracts[k]
                 if 'quantity' in self._trades[k]:
                     self._trades[k]['quantity'] += v
                 else:
                     self._trades[k]['quantity'] = v
+                if 'source' in self._trades[k]:
+                    self._trades[k]['source'][strategy.name] = v
+                else:
+                    self._trades[k]['source'] = {strategy.name: v}
 
         self._trades = {k: v for k, v in self._trades.items() if v['quantity'] != 0}
 
-    def _log_trades(self, orders):
+    def _log_trades(self, trades=None):
         """
         Logs orders in Firestore under holdings if already filled or openOrders if not.
 
-        :param orders: orders that were placed (list of ib_insync Trade objects)
+        :param trades: orders that were placed (list of ib_insync Trade objects)
         :return: activity log entry (dict)
         """
+
+        if trades is None:
+            trades = self._ib_gw.trades()
 
         # query config
         config = db.collection('config').document(self._trading_mode).get().to_dict()
 
-        for o in orders:
-            contract_id = o.contract.conId
-            for strategy in self._trades[contract_id]['source'].keys():
-                if o.orderStatus.status in OrderStatus.ActiveStates:
-                    # add to openOrders collection if not done yet
-                    db.collection('positions').document(self._trading_mode).collection('openOrders').document(str(o.order.permId)).create({
-                        'acctNumber': config['account'],
-                        'contractId': contract_id,
-                        'quantity': self._trades[contract_id]['source'][strategy],
-                        'strategy': strategy,
-                        'timestamp': datetime.now(timezone.utc)
-                    })
-                    logging.info('Added {} to /positions/{}/openOrders/{}'.format(contract_id, self._trading_mode, o.order.permId))
-                elif o.orderStatus.status in OrderStatus.DoneStates:
+        for t in trades:
+            contract_id = t.contract.conId
+            perm_id = t.order.permId
+            if t.orderStatus.status in OrderStatus.ActiveStates:
+                # add to openOrders collection if not done yet
+                db.collection('positions').document(self._trading_mode).collection('openOrders').document(str(perm_id)).create({
+                    'acctNumber': config['account'],
+                    'contractId': contract_id,
+                    'source': self._trades[contract_id]['source'],
+                    'timestamp': datetime.now(timezone.utc)
+                })
+                logging.info('Added {} to /positions/{}/openOrders/{}'.format(contract_id, self._trading_mode, perm_id))
+            elif t.orderStatus.status in OrderStatus.DoneStates:
+                for strategy, quantity in self._trades[contract_id]['source'].items():
                     # update holdings collection if filled
                     doc_ref = db.collection('positions').document(self._trading_mode).collection('holdings').document(strategy)
-                    portfolio = doc_ref.get().to_dict()
-                    increment = (1 if o.order.action == 'BUY' else -1) * int(o.orderStatus.filled)
-                    # firestore.transforms.Increment(increment)
-                    doc_ref.update({
-                        str(contract_id): portfolio[str(contract_id)] + increment or firestore.DELETE_FIELD
+                    portfolio = doc_ref.get().to_dict() or {}
+                    action = doc_ref.update if doc_ref.get().exists else doc_ref.create
+                    action({
+                        str(contract_id): portfolio.get(str(contract_id), 0) + quantity or firestore.DELETE_FIELD
                     })
                     logging.info('Updated {} in /positions/{}/holdings/{}'.format(contract_id, self._trading_mode, strategy))
 
         # return activity log entry
         return {
-            o.contract.localSymbol: {
+            t.contract.localSymbol: {
                 'order': {
                     k: v
-                    for k, v in o.order.nonDefaults().items()
+                    for k, v in t.order.nonDefaults().items()
                     if isinstance(v, (int, float, str))
                 },
                 'orderStatus': {
                     k: v
-                    for k, v in o.orderStatus.nonDefaults().items()
+                    for k, v in t.orderStatus.nonDefaults().items()
                     if isinstance(v, (int, float, str))
                 },
-                'isActive': o.isActive()
-            } for o in orders
+                'isActive': t.isActive()
+            } for t in trades
         }
 
     def place_orders(self, order_type=MarketOrder, order_params={}, order_properties={}):
@@ -309,7 +314,7 @@ class Trade:
 
         # place orders
         perm_ids = []
-        for k, v in self._trades.items():
+        for v in self._trades.values():
             order = self._ib_gw.placeOrder(v['contract'].contract,
                                            order_type(action='BUY' if v['quantity'] > 0 else 'SELL',
                                                       totalQuantity=abs(v['quantity']),

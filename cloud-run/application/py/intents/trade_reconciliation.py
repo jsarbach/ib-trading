@@ -37,26 +37,28 @@ def main(ib_gw, trading_mode):
         # reconcile trades
         fills = []
         for fill in ib_gw.fills():
+            contract_id = fill.contract.conId
             order_doc = db.collection('positions').document(trading_mode).collection('openOrders').document(str(fill.execution.permId))
             order = order_doc.get().to_dict()
 
             # update holdings if fully executed
-            if order is not None and fill.execution.cumQty == abs(order['quantity']):
+            side = 1 if fill.execution.side == 'BOT' else -1
+            if order is not None and side * fill.execution.cumQty == sum(order['source'].values()):
                 fills.append({
                     'contract': fill.contract.nonDefaults(),
                     'execution': util.tree(fill.execution.nonDefaults())
                 })
 
-                holdings_doc = db.collection('positions').document(trading_mode).collection('holdings').document(order['strategy'])
-                holdings = holdings_doc.get().to_dict() or {}
-                position = holdings.get(str(fill.contract.conId), 0)
-                side = 1 if fill.execution.side == 'BOT' else -1
+                for strategy, quantity in order['source'].items():
+                    holdings_doc = db.collection('positions').document(trading_mode).collection('holdings').document(strategy)
+                    holdings = holdings_doc.get().to_dict() or {}
+                    position = holdings.get(str(contract_id), 0)
 
-                with db.transaction() as tx:
-                    action = tx.update if holdings_doc.get().exists else tx.create
-                    action(holdings_doc,
-                           {str(fill.contract.conId): position + side * int(fill.execution.cumQty) or firestore.DELETE_FIELD})
-                    tx.delete(order_doc)
+                    with db.transaction() as tx:
+                        action = tx.update if holdings_doc.get().exists else tx.create
+                        action(holdings_doc,
+                               {str(contract_id): position + quantity or firestore.DELETE_FIELD})
+                        tx.delete(order_doc)
         activity_log['fills'] = fills
 
         # double-check with IB portfolio
