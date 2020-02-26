@@ -61,8 +61,10 @@ def main(ib_gw, trading_mode, **kwargs):
             'trading_mode': trading_mode
         }
         # get signals for all strategies
-        strategies = [Strategy(k, v.main, **{**allocation_params, 'scaling_factor': config['exposure']['strategies'][k]})
-                      for k, v in strategy_modules.items()]
+        strategies = [
+            Strategy(k, v.main, **{**allocation_params, 'scaling_factor': config['exposure']['strategies'].get(k, 0)})
+            for k, v in strategy_modules.items()
+        ]
         # log activity
         activity_log['signals'] = {s.name: {s.contracts[k].local_symbol: v for k, v in s.signals.items()} for s in strategies}
         activity_log['scaledSignals'] = {s.name: {s.contracts[k].local_symbol: v for k, v in s.scaled_signals.items()} for s in strategies}
