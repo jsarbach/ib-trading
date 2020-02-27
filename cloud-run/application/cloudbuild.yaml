@@ -13,5 +13,7 @@ steps:
     services=(${_SERVICES})
     for service in "${services[@]}"
     do
-      gcloud run deploy ${service}-dev --image eu.gcr.io/${PROJECT_ID}/cloud-run/application:${SHORT_SHA} --region ${_GCP_REGION} --platform managed
+      gcloud run deploy ${service}-dev --image eu.gcr.io/${PROJECT_ID}/cloud-run/application:${SHORT_SHA} --revision-suffix ${SHORT_SHA} --update-labels stage=dev --region ${_GCP_REGION} --platform managed
     done
+substitutions:
+  _GCP_REGION: europe-west1
