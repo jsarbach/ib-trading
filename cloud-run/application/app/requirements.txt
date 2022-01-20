@@ -1,0 +1,9 @@
+dateparser==1.1.0
+falcon==3.0.1
+google-cloud-firestore==2.3.4
+google-cloud-bigquery[pandas]==2.32.0
+google-cloud-logging==2.7.0
+google-cloud-secret-manager==2.8.0
+gunicorn==20.1.0
+ib-insync==0.9.70
+statsmodels==0.13.1

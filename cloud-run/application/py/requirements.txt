@@ -1,8 +1,0 @@
-falcon==2.0.0
-google-api-python-client==1.7.11
-google-auth==1.11.0
-google-auth-httplib2==0.0.3
-google-cloud-firestore==1.6.2
-gunicorn==20.0.4
-ib-insync==0.9.59
-pandas==1.0.0

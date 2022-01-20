@@ -1,0 +1,11 @@
+steps:
+#### build and push Docker image
+- name: "gcr.io/cloud-builders/gcloud-slim"
+  args:
+  - "builds"
+  - "submit"
+  - "--tag"
+  - "eu.gcr.io/${PROJECT_ID}/cloud-run/base:${SHORT_SHA}"
+  - "cloud-run/base/"
+  - "--gcs-source-staging-dir"
+  - "gs://${PROJECT_ID}-cloudbuild/source"

@@ -1,10 +1,4 @@
-FROM python:3.7-slim
-
-# install dependencies
-RUN  apt-get update \
-  && apt-get upgrade -y \
-  && apt-get install -y wget unzip xvfb libxtst6 libxrender1 python3.7-dev build-essential net-tools
-#RUN apt-get install -y procps
+FROM python:3.9-slim
 
 # set environment variables
 ENV TWS_INSTALL_LOG=/root/Jts/tws_install.log \
@@ -14,23 +8,29 @@ ENV TWS_INSTALL_LOG=/root/Jts/tws_install.log \
     twsPath=/root/Jts \
     twsSettingsPath=/root/Jts
 
+# install dependencies
+RUN  apt-get update \
+  && apt-get upgrade -y \
+  && apt-get install --no-install-recommends -y wget unzip xvfb libxtst6 libxrender1 python3.9-dev build-essential net-tools openjfx \
+  && apt-get clean \
+  && apt-get -y autoremove
+#RUN apt-get install -y procps
+
 # make dirs
 RUN mkdir -p /tmp && mkdir -p ${ibcPath} && mkdir -p ${twsPath}
 
-# download IB TWS
-RUN wget -q -O /tmp/ibgw.sh https://download2.interactivebrokers.com/installers/ibgateway/stable-standalone/ibgateway-stable-standalone-linux-x64.sh
-RUN chmod +x /tmp/ibgw.sh
+# download and install IB TWS, write output to file so that we can parse the TWS version number later
+# "echo" to confirm installation path, "yes n" to prevent startup after installation, "|| true" to override non-zero exit code
+RUN wget -q -O /tmp/ibgw.sh https://download2.interactivebrokers.com/installers/ibgateway/stable-standalone/ibgateway-stable-standalone-linux-x64.sh \
+  && chmod +x /tmp/ibgw.sh \
+  && yes n | echo | /tmp/ibgw.sh > ${TWS_INSTALL_LOG} || true \
+  && rm /tmp/ibgw.sh
 
 # download IBC
-RUN wget -q -O /tmp/IBC.zip https://github.com/IbcAlpha/IBC/releases/download/3.8.2/IBCLinux-3.8.2.zip
-RUN unzip /tmp/IBC.zip -d ${ibcPath}
-RUN chmod +x ${ibcPath}/*.sh ${ibcPath}/*/*.sh
-
-# install TWS, write output to file so that we can parse the TWS version number later
-RUN yes n | /tmp/ibgw.sh > ${TWS_INSTALL_LOG}
-
-# remove downloaded files
-RUN rm /tmp/ibgw.sh /tmp/IBC.zip
+RUN wget -q -O /tmp/IBC.zip https://github.com/IbcAlpha/IBC/releases/download/3.12.0/IBCLinux-3.12.0.zip \
+  && unzip /tmp/IBC.zip -d ${ibcPath} \
+  && chmod +x ${ibcPath}/*.sh ${ibcPath}/*/*.sh \
+  && rm /tmp/IBC.zip
 
 # copy IBC/Jts configs
 COPY ibc/config.ini ${ibcIni}

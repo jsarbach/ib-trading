@@ -1,2 +1,6 @@
 **/__pycache__/
 **/*.pyc
+secrets/**
+cloudbuild.yaml
+docker-compose.yml
+Dockerfile

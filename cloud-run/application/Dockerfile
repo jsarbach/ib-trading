@@ -1,9 +1,10 @@
-FROM eu.gcr.io/[PROJECT_ID]/cloud-run/base:stable
+FROM eu.gcr.io/[PROJECT_ID]/cloud-run/base:[TAG]
 
-# copy Python stuff and pip install packages
+# copy Python application and pip install packages
 WORKDIR /home
-COPY py .
-RUN pip install -r requirements.txt
+COPY app .
+RUN python -m pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
 
-# execute cmd script to start Xvfb and gunicorn
+# execute cmd script
 CMD ./cmd.sh
