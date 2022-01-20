@@ -8,10 +8,12 @@ from lib.environment import Environment
 class TestEnvironment(unittest.TestCase):
 
     ACCOUNT_VALUE_TIMEOUT = 2
-    ENV_VARS = ['ABC', 'DEF', 'GHI']
+    ENV_VARS = ['ABC', 'DEF', 'GHI', 'PROJECT_ID']
     IBC_CONFIG = {'a': 1, 'b': 2, 'c': 3}
+    PROJECT_ID = 'project-id'
     TRADING_MODE = 'trading_mode'
 
+    @patch('lib.environment.environ', {'PROJECT_ID': 'project-id'})
     @patch('lib.environment.IBGW')
     @patch('lib.environment.GcpModule.get_secret')
     def setUp(self, *_):
@@ -19,8 +21,8 @@ class TestEnvironment(unittest.TestCase):
         self.test_obj.ACCOUNT_VALUE_TIMEOUT = self.ACCOUNT_VALUE_TIMEOUT
         self.test_obj.ENV_VARS = self.ENV_VARS
 
-    @patch.object(Environment._Environment__Implementation, 'ENV_VARS', ['ABC', 'DEF', 'GHI'])
-    @patch('lib.environment.environ', {'ABC': 'abc', 'DEF': 'def', 'GHI': 'ghi', 'JKL': 'jkl'})
+    @patch.object(Environment._Environment__Implementation, 'ENV_VARS', ENV_VARS)
+    @patch('lib.environment.environ', {'ABC': 'abc', 'DEF': 'def', 'GHI': 'ghi', 'JKL': 'jkl', 'PROJECT_ID': 'project-id'})
     @patch('lib.environment.GcpModule._db', document=MagicMock(side_effect=[MagicMock(get=MagicMock(return_value=MagicMock(to_dict=MagicMock(return_value={'a': 1, 'b': 2, 'c': 3})))),
                                                                             MagicMock(get=MagicMock(return_value=MagicMock(to_dict=MagicMock(return_value={'d': 4, 'e': 5, 'c': 6}))))]))
     @patch('lib.environment.IBGW')
@@ -29,7 +31,7 @@ class TestEnvironment(unittest.TestCase):
         self.test_obj.destroy()
 
         environment = Environment(self.TRADING_MODE, self.IBC_CONFIG)
-        self.assertDictEqual({'ABC': 'abc', 'DEF': 'def', 'GHI': 'ghi'}, environment.env)
+        self.assertDictEqual({'ABC': 'abc', 'DEF': 'def', 'GHI': 'ghi', 'PROJECT_ID': 'project-id'}, environment.env)
         self.assertEqual(self.TRADING_MODE, environment.trading_mode)
         self.assertEqual(ibgw.return_value, environment.ibgw)
         try:
@@ -40,7 +42,7 @@ class TestEnvironment(unittest.TestCase):
                 'password': 'password'
             })
             db.document.assert_has_calls([call('config/common'), call(f'config/{self.TRADING_MODE}')])
-            get_secret.assert_called_once_with(environment.SECRET_RESOURCE.format(self.TRADING_MODE))
+            get_secret.assert_called_once_with(environment.SECRET_RESOURCE.format(self.PROJECT_ID, self.TRADING_MODE))
         except AssertionError:
             self.fail()
 
