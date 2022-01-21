@@ -13,7 +13,7 @@ class Environment:
 
         ACCOUNT_VALUE_TIMEOUT = 60
         ENV_VARS = ['K_REVISION', 'PROJECT_ID']
-        SECRET_RESOURCE = 'projects/{}/secrets/ib-trading-{}/versions/latest'
+        SECRET_RESOURCE = 'projects/{}/secrets/{}/versions/latest'
 
         def __init__(self, trading_mode, ibc_config):
             self._env = {k: v for k, v in environ.items() if k in self.ENV_VARS}

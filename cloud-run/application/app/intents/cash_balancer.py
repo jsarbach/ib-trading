@@ -40,8 +40,12 @@ class CashBalancer(Intent):
             # place orders
             orders = []
             for k, v in trades.items():
-                orders.append(self._env.ibgw.placeOrder(Forex(pair=k, exchange='FXCONV'),
-                                                        MarketOrder('BUY' if v > 0 else 'SELL', abs(v))))
+                order = self._env.ibgw.placeOrder(Forex(pair=k, exchange='FXCONV'),
+                                                  MarketOrder('BUY' if v > 0 else 'SELL', abs(v)))
+                orders.append({
+                    k: [item.nonDefaults() for item in v] if isinstance(v, list) else v.nonDefaults()
+                    for k, v in order.nonDefaults().items()
+                })
             self._activity_log.update(orders=orders)
             self._env.logging.info(f"Orders placed: {self._activity_log['orders']}")
 
