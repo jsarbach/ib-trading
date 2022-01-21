@@ -40,6 +40,8 @@ steps:
   - "--env"
   - "PYTHONPATH=/home"
   - "--env"
+  - "PROJECT_ID=${PROJECT_ID}"
+  - "--env"
   - "K_REVISION=cloudbuild"
   - "--entrypoint"
   - "bash"
