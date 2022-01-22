@@ -1,6 +1,6 @@
+import json
 from datetime import datetime
 from hashlib import md5
-import json
 
 from lib.environment import Environment
 
@@ -47,8 +47,9 @@ class Intent:
             self._env.ibgw.reqMarketDataType(self._env.config['marketDataType'])
             retval = self._core()
         except Exception as e:
-            self._env.logging.error(e)
-            self._activity_log.update(exception=str(e))
+            error_str = f'{e.__class__.__name__}: {e}'
+            self._env.logging.error(error_str)
+            self._activity_log.update(exception=error_str)
             exc = e
         finally:
             self._env.ibgw.stop_and_terminate()

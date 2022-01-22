@@ -103,7 +103,7 @@ class TestIntent(unittest.TestCase):
             self.assertDictEqual({**activity_log, 'timestamp': activity_log['timestamp'].isoformat()}, actual)
 
             self.assertRaises(Exception, self.test_obj.run)
-            self.assertDictEqual({**activity_log, 'exception': 'error'}, self.test_obj._activity_log)
+            self.assertDictEqual({**activity_log, 'exception': 'Exception: error'}, self.test_obj._activity_log)
             try:
                 env.logging.error.assert_called_once()
             except AssertionError:

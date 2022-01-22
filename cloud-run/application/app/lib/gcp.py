@@ -98,11 +98,11 @@ class GcpModule:
             raise Exception('Query parameter error')
 
         try:
-            self._logging.debug(f'Querying BigQuery for {self.__class__.__name__} endpoint with parameters {job_config.query_parameters}...')
+            self._logging.debug(f'Querying BigQuery with parameters {job_config.query_parameters}...')
             job = self._bq.query(query, job_config=job_config)
         except Exception as e:
-            self._logging.error(f'BigQuery error for {self.__class__.__name__} endpoint: {e}')
-            raise Exception('BigQuery error')
+            self._logging.error(f'BigQuery error: {e}')
+            raise e
 
         try:
             if return_type.lower() == 'dataframe':
@@ -118,5 +118,5 @@ class GcpModule:
         except NotImplementedError as e:
             raise e
         except Exception as e:
-            self._logging.error(f'Error reading BigQuery result for {self.__class__.__name__} endpoint: {e}')
-            raise Exception('Error reading BigQuery result')
+            self._logging.error(f'Error reading BigQuery result: {e}')
+            raise e

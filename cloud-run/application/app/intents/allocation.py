@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+
 import dateparser
 from ib_insync import MarketOrder, TagValue
 
@@ -30,11 +31,13 @@ class Allocation(Intent):
             return
 
         if self._env.config['retryCheckMinutes']:
-            # check if agent has run before (prevent trade repetition)
+            # check if agent has created an order before (prevent trade repetition)
             query = self._env.db.collection('activity') \
                 .where('tradingMode', '==', self._env.trading_mode) \
                 .where('signature', '==', self._signature) \
-                .where('timestamp', '>', datetime.utcnow() - timedelta(minutes=self._env.config['retryCheckMinutes']))
+                .where('timestamp', '>', datetime.utcnow() - timedelta(minutes=self._env.config['retryCheckMinutes'])) \
+                .order_by('timestamp') \
+                .order_by('orders')
             if len(list(query.get())):
                 self._env.logging.warning('Agent has run before.')
                 return
@@ -93,7 +96,7 @@ if __name__ == '__main__':
     env.ibgw.connect(port=4001)
     env.ibgw.reqMarketDataType(2)
     try:
-        allocation = Allocation(strategies=['dummy'], dryRun=True)
+        allocation = Allocation(strategies=['vxcurve', 'vxarma'], dryRun=True)
         allocation._core()
         print(allocation._activity_log)
     except Exception as e:

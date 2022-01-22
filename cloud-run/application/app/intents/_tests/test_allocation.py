@@ -92,7 +92,13 @@ class TestAllocation(unittest.TestCase):
     def test_core(self, trade, market_order, tag_value):
         with patch.object(self.test_obj, '_env',
                           config=self.CONFIG,
-                          db=MagicMock(collection=MagicMock(return_value=MagicMock(where=MagicMock(return_value=MagicMock(where=MagicMock(return_value=MagicMock(where=MagicMock(return_value=MagicMock(get=MagicMock(return_value=[123])))))))))),
+                          db=MagicMock(collection=MagicMock(return_value=MagicMock(
+                              where=MagicMock(return_value=MagicMock(
+                                  where=MagicMock(return_value=MagicMock(
+                                      where=MagicMock(return_value=MagicMock(
+                                          order_by=MagicMock(return_value=MagicMock(
+                                              order_by=MagicMock(return_value=MagicMock(
+                                                  get=MagicMock(return_value=[123])))))))))))))),
                           env=self.ENV,
                           get_account_values=MagicMock(return_value={'NetLiquidation': {'CHF': 12345}})) as env:
             with patch.object(self.test_obj, '_strategies', self.STRATEGIES) as strategies:
