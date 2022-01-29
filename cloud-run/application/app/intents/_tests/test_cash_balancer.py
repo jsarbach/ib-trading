@@ -34,12 +34,14 @@ class TestCashBalancer(unittest.TestCase):
                           get_account_values=MagicMock(return_value={'NetLiquidation': {'CHF': 12345},
                                                                      'CashBalance': {'CHF': 10000, 'EUR': -2345, 'USD': 3456},
                                                                      'ExchangeRate': {'CHF': 1.0, 'EUR': 0.5, 'USD': 2.0}}),
-                          ibgw=MagicMock(placeOrder=MagicMock(return_value=MagicMock(nonDefaults=MagicMock(return_value={'a': MagicMock(nonDefaults=MagicMock(return_value='A')),
-                                                                                                                         'b': [MagicMock(nonDefaults=MagicMock(return_value='B'))]}))))) as env:
+                          ibgw=MagicMock(placeOrder=MagicMock(return_value=MagicMock(order=MagicMock(permId='permId'))),
+                                         trades=MagicMock(return_value=[MagicMock(contract=MagicMock(pair=MagicMock(return_value='pair')),
+                                                                                  order=MagicMock(nonDefaults=MagicMock(return_value={'a': 'A'})),
+                                                                                  orderStatus=MagicMock(permId='permId', nonDefaults=MagicMock(return_value={'b': 'B'})))]))) as env:
             expected_log = {
                 **activity_log,
                 'exposure': {'EUR': -1172.5, 'USD': 6912.0},
-                'orders': [{'a': 'A', 'b': ['B']}],
+                'orders': {'pair': {'order': {'a': 'A'}, 'orderStatus': {'b': 'B'}}},
                 'trades': {'USDCHF': -3000}
             }
             self.test_obj._core()

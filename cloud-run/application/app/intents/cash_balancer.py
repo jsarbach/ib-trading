@@ -38,14 +38,27 @@ class CashBalancer(Intent):
 
         if not self._dry_run and len(trades):
             # place orders
-            orders = []
+            perm_ids = []
             for k, v in trades.items():
                 order = self._env.ibgw.placeOrder(Forex(pair=k, exchange='FXCONV'),
                                                   MarketOrder('BUY' if v > 0 else 'SELL', abs(v)))
-                orders.append({
-                    k: [item.nonDefaults() for item in v] if isinstance(v, list) else v.nonDefaults()
-                    for k, v in order.nonDefaults().items()
-                })
+                # give the IB Gateway a couple of seconds to digest orders and to raise possible errors
+                self._env.ibgw.sleep(2)
+                perm_ids.append(order.order.permId)
+            orders = {
+                t.contract.pair(): {
+                    'order': {
+                        k: v
+                        for k, v in t.order.nonDefaults().items()
+                        if isinstance(v, (int, float, str))
+                    },
+                    'orderStatus': {
+                        k: v
+                        for k, v in t.orderStatus.nonDefaults().items()
+                        if isinstance(v, (int, float, str))
+                    }
+                } for t in self._env.ibgw.trades() if t.orderStatus.permId in perm_ids
+            }
             self._activity_log.update(orders=orders)
             self._env.logging.info(f"Orders placed: {self._activity_log['orders']}")
 
@@ -56,7 +69,7 @@ if __name__ == '__main__':
     env = Environment()
     env.ibgw.connect(port=4001)
     try:
-        cash_balancer = CashBalancer(dryRun=True)
+        cash_balancer = CashBalancer(dryRun=False)
         cash_balancer._core()
     except Exception as e:
         raise e
