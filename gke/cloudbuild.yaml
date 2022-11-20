@@ -39,7 +39,7 @@ steps:
         for dir in gke/kubernetes-cluster
         do 
           cd ${dir}   
-          env=${dir%*/}
+          env=${dir%/}
           env=${env#*/}
           echo ""
           echo "*************** TERRAFORM INIT ******************"
@@ -64,8 +64,8 @@ steps:
         for dir in gke/kubernetes-cluster
         do 
           cd ${dir}   
-          env=${dir%*/}
-          env=${env#*/}  
+          env=${dir%/}
+          env=${env#/}  
           echo ""
           echo "*************** TERRAFOM PLAN ******************"
           echo "******* At environment: ${env} ********"
