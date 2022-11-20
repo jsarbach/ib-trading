@@ -1,5 +1,3 @@
-# https://cloud.google.com/architecture/managing-infrastructure-as-code
-
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +22,7 @@ steps:
   - | 
       echo "***********************"
       echo "$BRANCH_NAME"
-      echo "************************"
+      echo "***********************"
 
 - id: 'tf init'
   name: 'hashicorp/terraform:1.0.0'
@@ -32,11 +30,11 @@ steps:
   args: 
   - '-c'
   - |
-      if [ -d "gke/kubernetes-cluster/$BRANCH_NAME/" ]; then
-        cd gke/kubernetes-cluster/$BRANCH_NAME
+      if [ -d "kubernetes-cluster/$BRANCH_NAME/" ]; then
+        cd kubernetes-cluster/$BRANCH_NAME
         terraform init
       else
-        for dir in gke/kubernetes-cluster/*/
+        for dir in kubernetes-cluster/*/
         do 
           cd ${dir}   
           env=${dir%*/}
@@ -57,11 +55,11 @@ steps:
   args: 
   - '-c'
   - | 
-      if [ -d "gke/kubernetes-cluster/$BRANCH_NAME/" ]; then
-        cd gke/kubernetes-cluster/$BRANCH_NAME
+      if [ -d "kubernetes-cluster/$BRANCH_NAME/" ]; then
+        cd kubernetes-cluster/$BRANCH_NAME
         terraform plan
       else
-        for dir in gke/kubernetes-cluster/*/
+        for dir in kubernetes-cluster/*/
         do 
           cd ${dir}   
           env=${dir%*/}
@@ -83,8 +81,8 @@ steps:
   args: 
   - '-c'
   - | 
-      if [ -d "gke/kubernetes-cluster/$BRANCH_NAME/" ]; then
-        cd gke/kubernetes-cluster/$BRANCH_NAME      
+      if [ -d "kubernetes-cluster/$BRANCH_NAME/" ]; then
+        cd kubernetes-cluster/$BRANCH_NAME      
         terraform apply -auto-approve
       else
         echo "***************************** SKIPPING APPLYING *******************************"

@@ -32,11 +32,11 @@ steps:
   args: 
   - '-c'
   - |
-      if [ -d "gke/kubernetes-cluster/$BRANCH_NAME/" ]; then
-        cd gke/kubernetes-cluster/$BRANCH_NAME
+      if [ -d "kubernetes-cluster/$BRANCH_NAME/" ]; then
+        cd kubernetes-cluster/$BRANCH_NAME
         terraform init
       else
-        for dir in gke/kubernetes-cluster/*/
+        for dir in kubernetes-cluster/*/
         do 
           cd ${dir}   
           env=${dir%*/}
@@ -57,11 +57,11 @@ steps:
   args: 
   - '-c'
   - | 
-      if [ -d "gke/kubernetes-cluster/$BRANCH_NAME/" ]; then
-        cd gke/kubernetes-cluster/$BRANCH_NAME
+      if [ -d "kubernetes-cluster/$BRANCH_NAME/" ]; then
+        cd kubernetes-cluster/$BRANCH_NAME
         terraform plan
       else
-        for dir in gke/kubernetes-cluster/*/
+        for dir in kubernetes-cluster/*/
         do 
           cd ${dir}   
           env=${dir%*/}
@@ -83,8 +83,8 @@ steps:
   args: 
   - '-c'
   - | 
-      if [ -d "gke/kubernetes-cluster/$BRANCH_NAME/" ]; then
-        cd gke/kubernetes-cluster/$BRANCH_NAME      
+      if [ -d "kubernetes-cluster/$BRANCH_NAME/" ]; then
+        cd kubernetes-cluster/$BRANCH_NAME      
         terraform apply -auto-approve
       else
         echo "***************************** SKIPPING APPLYING *******************************"

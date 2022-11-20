@@ -1,5 +1,0 @@
-**/__pycache__/
-**/*.pyc
-cloudbuild.yaml
-docker-compose.yml
-Dockerfile
