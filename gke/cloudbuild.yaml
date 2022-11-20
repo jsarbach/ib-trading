@@ -36,7 +36,7 @@ steps:
         cd gke/kubernetes-cluster/$BRANCH_NAME
         terraform init
       else
-        for dir in gke/kubernetes-cluster/*/
+        for dir in gke/kubernetes-cluster
         do 
           cd ${dir}   
           env=${dir%*/}
@@ -61,7 +61,7 @@ steps:
         cd gke/kubernetes-cluster/$BRANCH_NAME
         terraform plan
       else
-        for dir in gke/kubernetes-cluster/*/
+        for dir in gke/kubernetes-cluster
         do 
           cd ${dir}   
           env=${dir%*/}
