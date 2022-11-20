@@ -93,4 +93,4 @@ steps:
       fi
 # [END tf-apply]      
 options:
-  logging: NONE
+  logging: CLOUD_LOGGING_ONLY
