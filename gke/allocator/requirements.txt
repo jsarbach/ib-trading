@@ -2,4 +2,4 @@ dateparser==0.7.2
 google-cloud-firestore==1.6.1
 google-cloud-logging==1.14.0
 ib-insync==0.9.59
-requests==2.22.0
+requests==2.31.0
